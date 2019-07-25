@@ -43,7 +43,6 @@ Begin VB.Form Form1
       _ExtentX        =   20241
       _ExtentY        =   9340
       _Version        =   393217
-      Enabled         =   -1  'True
       ScrollBars      =   3
       TextRTF         =   $"Form1.frx":0000
       BeginProperty Font {0BE35203-8F91-11CE-9DE3-00AA004BB851} 
@@ -217,7 +216,7 @@ Sub GenerateExe()
     Close
 End Sub
 Private Sub Command4_Click()
-    frmharmony.Show
+    fHarmony.Show
 End Sub
 
 Private Sub Command5_Click()

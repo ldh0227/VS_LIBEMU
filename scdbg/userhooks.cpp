@@ -3962,7 +3962,7 @@ int32_t	__stdcall hook_OpenProcess(struct emu_env_w32 *win, struct emu_env_w32_d
 
 }
 
-int32_t	__stdcall hook_ExpandEnvironmentStringsA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+int32_t	__stdcall hook_ExpandEnvironmentStrings(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {
 	/*  
 		DWORD WINAPI ExpandEnvironmentStrings(
@@ -3973,7 +3973,8 @@ int32_t	__stdcall hook_ExpandEnvironmentStringsA(struct emu_env_w32 *win, struct
 	*/
 
 	uint32_t eip_save = popd();
-	struct emu_string* src = popstring();
+	//struct emu_string* src = popstring();
+	struct emu_string* src = isWapi(ex->fnname) ?  popwstring() : popstring();
 	uint32_t dst = popd();
 	uint32_t sz = popd();
 
