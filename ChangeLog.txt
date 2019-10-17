@@ -2,33 +2,33 @@
 ---------------[  Changelog for scdbg/libemu  ]---------------
 
 10.16.19 - 32 new hooks contributed by Gabor Szappanos thanks! 
-			    LocalFree, MoveFileExA/W, RegSetValueExA/W, SHSetValueA/W, RegOpenKeyA/W, 
-				RegEnumKeyA/W, GetCommandLineA/W, RegCloseKey,  FatalAppExitA,  LocalFree,  
-				ShellExecuteExA,  SHGetSpecialFolderLocation, SHGetPathFromIDListA, PathAppendA 
-				ZwWriteFile, ImageRvaToVa, GetForegroundWindow, _stricmp, strcmp, ZwQueryObject, 
-				ZwProtectVirtualMemory, WinHttpQueryDataAvailable, QueryPerformanceCounter, TlsAlloc, 
-				TlsSetValue, HeapDestroy 
+            LocalFree, MoveFileExA/W, RegSetValueExA/W, SHSetValueA/W, RegOpenKeyA/W, 
+            RegEnumKeyA/W, GetCommandLineA/W, RegCloseKey,  FatalAppExitA,  LocalFree,  
+            ShellExecuteExA,  SHGetSpecialFolderLocation, SHGetPathFromIDListA, PathAppendA 
+            ZwWriteFile, ImageRvaToVa, GetForegroundWindow, _stricmp, strcmp, ZwQueryObject, 
+            ZwProtectVirtualMemory, WinHttpQueryDataAvailable, QueryPerformanceCounter, TlsAlloc, 
+            TlsSetValue, HeapDestroy 
 
 5.9.15  -  added winhttp.dll, dbg shell .allocs command, bugfix LoadLibrary/GetModuleHandle _strnicmp
-		   7 hooks:  WinHttpCrackUrl, WinHttpOpen, WinHttpGetIEProxyConfigForCurrentUser, 
-				     WinHttpConnect, WinHttpOpenRequest, WinHttpSendRequest, WinHttpReceiveResponse 
-					 
+           7 hooks:  WinHttpCrackUrl, WinHttpOpen, WinHttpGetIEProxyConfigForCurrentUser, 
+                     WinHttpConnect, WinHttpOpenRequest, WinHttpSendRequest, WinHttpReceiveResponse 
+                     
 8.4.14  -  ZwSetContextThread, RegDeleteKeyA/W
 
 5.22.14 -  repxx support for instr_scas_af, -dump now works with -nofile
 
 5.15.14 -  cleaned up multi bpx code a little, not worth complexity of std::list
-		   hooks: CreateMutexA/W, RtlGetLastWin32Error
-		   
+           hooks: CreateMutexA/W, RtlGetLastWin32Error
+           
 5.14.14 -  removed emu_hashtable and emu_list in favor of stdext::hash_map 
            (VS2010+ hated the macros in emu_list.h)
 
 5.13.14 -  master131 bugfixes: enabled instr_imul_0f_af; opcode 0xf6 test ah w_size fix; tweaks to build files 
-		   neg opcode 0xf6 set result bugfix 
-		   hook: GetVersionExA/W, new opt -llo (LoadLibrary Overrride), -raw now also looks in shellcode home dir for file specified
-		   hook: VirtualFree, guiLauncher.frmHashScan bugfix
-		   autoflush console output for external apps realtime read
-		    
+           neg opcode 0xf6 set result bugfix 
+           hook: GetVersionExA/W, new opt -llo (LoadLibrary Overrride), -raw now also looks in shellcode home dir for file specified
+           hook: VirtualFree, guiLauncher.frmHashScan bugfix
+           autoflush console output for external apps realtime read
+            
 4.2.14  -  added imagehlp.dll
 3.12.14 -  added repe support for instr_cmps_a7
 
@@ -36,14 +36,14 @@
            should not cause problems..but recording just in case..
            
 3.2.14  -  added support for multiple breakpoints (.bl, .bc, b)
-		   old operation of /las /laa and -vvv are all still valid
-		   
+           old operation of /las /laa and -vvv are all still valid
+           
 3.01.14 -  dbgshell bug fixes: step over, break point, set eip now supports fileoffsets, 
-		   IDA integration: sync display on step/bp, add comments from debug shell. 
-		   /idasync added to startup options and .idasync to debug shell
-		   2 new hooks VirtualQuery/Ex, 
-		   added up/down arrows to disasm for jxx
-		   jump taken/not taken now shown for -vvv next to flags
+           IDA integration: sync display on step/bp, add comments from debug shell. 
+           /idasync added to startup options and .idasync to debug shell
+           2 new hooks VirtualQuery/Ex, 
+           added up/down arrows to disasm for jxx
+           jump taken/not taken now shown for -vvv next to flags
 
 2.21.14 -  added hash scan to gui_launcher (database has 30k hash values downloaded on first use)
 
@@ -52,7 +52,7 @@
 12.03.13-  switch over hooks to SafeMalloc, DeviceIOControl -i write to dump file
 
 12.01.13 - 3 hooks: ZwAllocateVirtualMemory, DeviceIoControl, GetSystemTimeAsFileTime
-		   crypto api hooks now support interactive mode
+           crypto api hooks now support interactive mode
 
 11.21.13 - lcreate, fopen +b bug fix (thanks Jon)
 
@@ -97,23 +97,23 @@
            test: scdbg /wstr 0x401000-0x64A130000000060fa00731C026A13000000090  -vvv -nofile
            
 4.5.13   - new hooks: IsDebuggerPresent,ZwQueryInformationProcess,OpenFileMappingA,time,srand,rand,inet_addr,wsprintfA
-		 - bugfix: malloc now logs allocations to include with /d dump option.
-		 
+         - bugfix: malloc now logs allocations to include with /d dump option.
+         
 3.25.13  - new hooks: fprintf, exit, GetLocalTime, ExitWindowsEx 
-					  SetFileAttributesA, GetLastError
-		   bugfix: fread (cdecl)
+                      SetFileAttributesA, GetLastError
+           bugfix: fread (cdecl)
 
 2.18.13  - add versions to known dlls (displayed in dbgshell .pl dllmap)
          - added /raw  - Raw Patch Mode: load fpath into mem at 0xBase (not PE aware can use multiple times)   
-		 - added /poke - Write 0xValue at 0xBase (can use multiple times) 
-		 - undocumented /rop mode added (can use with /offset)
-		      - will have to load target dll opcodes with /raw and used IAT entries with /poke
-		 - added several rop signatures
-		 - new hook ZwSetInformationProcess 
-		 - added ability to process .scmd files. Drag and drop them on icon and it will run contents as cmdline.
-		 - added -dllmap command line option
-		 - added string poke (-spoke) command to write binary (0xHexChars) or ascii strings to memory
-		 
+         - added /poke - Write 0xValue at 0xBase (can use multiple times) 
+         - undocumented /rop mode added (can use with /offset)
+              - will have to load target dll opcodes with /raw and used IAT entries with /poke
+         - added several rop signatures
+         - new hook ZwSetInformationProcess 
+         - added ability to process .scmd files. Drag and drop them on icon and it will run contents as cmdline.
+         - added -dllmap command line option
+         - added string poke (-spoke) command to write binary (0xHexChars) or ascii strings to memory
+         
 1.18.13  - findsc mode update/bugfix + % complete output
          - findsc mode now supports -dump which will give more context/debugging output for findsc mode.
          - NtQueryInformationFile partial implementation (FileInfoClass), bugfix GetEnvVarA
@@ -156,9 +156,9 @@
          - disabled SetConsoleMode, messes up Windows 7 accepting input in findsc and dbgshell...
          
 11.16.11 - new hooks: GetWindowThreadProcessId, OpenProcess
-		 - added support for -u to -dir mode
-		 - added /support/parseBulk (data visualizer for -dir mode output)
-		 
+         - added support for -u to -dir mode
+         - added /support/parseBulk (data visualizer for -dir mode output)
+         
 10.3.11 - emu_env_w32_load_dll use actual module size to copy k32 and ntdll live memory to emu
           (some system like CN had crash with hardcoded default - thanks Zhi Liu)
         - added repne support for stosb
@@ -166,169 +166,169 @@
 9.26.11 - hooks: msvcrt.strstr, msvcrt.strtoul, CreateDirectoryA, SetCurrentDirectoryA
 
 8.8.11  - /min (min steps to trigger findsc record), findsc now honors /foff
-		
+        
 7.20.11 - new opcode: rdtsc, tested/enabled existing: instr_imul_69
 
 6.24.11 - new export emu_memory_read_wide_string, 9 new hooks (SCM)
         - CloseServiceHandle, DeleteService, ControlService
-		- OpenServiceA/W, RegOpenKeyExA/W, OpenSCManagerA/W
-		- patch can now be run on its own, now supports embedded comments
-		- /sigs supports /disasm, /hooks interactive highlights
+        - OpenServiceA/W, RegOpenKeyExA/W, OpenSCManagerA/W
+        - patch can now be run on its own, now supports embedded comments
+        - /sigs supports /disasm, /hooks interactive highlights
 
 6.22.11 - repne support for movsb added, 5 new hooks: (not yet interactive)
-		- InternetConnectA, HttpOpenRequestA, HttpSendRequestA, InternetCloseHandle, GetCurrentThread
-		- /hooks now shows interactive hooks in yellow
-		
+        - InternetConnectA, HttpOpenRequestA, HttpSendRequestA, InternetCloseHandle, GetCurrentThread
+        - /hooks now shows interactive hooks in yellow
+        
 6.8.11  - emu_memory_read_string now allows for partial string reads
-	    - new function emu_string_clear
+        - new function emu_string_clear
         - string dereferencing added to deref_regs, stack dump, and dword dump
-        	
+            
 6.6.11  - made sure interrupts throw error (linux shellcode no longer supported)
         - new hook: SHGetFolderPathA
         - removed userhooks.h, ADDHOOK macro now builds prototypes
 5.21.11
-		- export_copy fix * 2, more hook conversions to popd(), /lookup mode
-		- removed emu_track (was used in graphing and shellcode detection code)
-		- added /api option to locate API table in memory (scans body/stack/allocs)
+        - export_copy fix * 2, more hook conversions to popd(), /lookup mode
+        - removed emu_track (was used in graphing and shellcode detection code)
+        - added /api option to locate API table in memory (scans body/stack/allocs)
 5.19.11
-		- imlemented movsw/movsb with rep support
-		- new hooks: IsBadReadPtr, GetCommandLineA	
-		- updated: GetTempFileNameA, GetTempPathA
-		- new option: /cmd for use with GetCommandLineA
-		- hooks now receive emu_env_w32 instead of emu_env and emu_env.env removed
+        - imlemented movsw/movsb with rep support
+        - new hooks: IsBadReadPtr, GetCommandLineA    
+        - updated: GetTempFileNameA, GetTempPathA
+        - new option: /cmd for use with GetCommandLineA
+        - hooks now receive emu_env_w32 instead of emu_env and emu_env.env removed
 5.18.11
-		- implemented rep for stosw/stosd
-		- implemented Antispam system using win.env->lastApiCalled/lastApiHitCount
-		- new hook fread (w/antispam & interactive mode support)
+        - implemented rep for stosw/stosd
+        - implemented Antispam system using win.env->lastApiCalled/lastApiHitCount
+        - new hook fread (w/antispam & interactive mode support)
 5.17.11
         - reimplemented repe/repne for scasb (thanks to markus for pointing out error)
         - new hooks: EnumWindows, GetClassNameA
 5.16.11
-	exe - experimental changes to CreateFileMapping, MapViewOfFile
-	    - new options -cfo (CreateFileOverride) , -u (unlimited steps)
-	    - emu_string->data from void* to char* (avoid need for emu_string_char)
-	    - repne scasb implemented
-	    - new hooks: GetUrlCacheEntryInfoA,CopyFileA mods to GetFileSize
+    exe - experimental changes to CreateFileMapping, MapViewOfFile
+        - new options -cfo (CreateFileOverride) , -u (unlimited steps)
+        - emu_string->data from void* to char* (avoid need for emu_string_char)
+        - repne scasb implemented
+        - new hooks: GetUrlCacheEntryInfoA,CopyFileA mods to GetFileSize
 
 5.14.11
-	dll - updated ws2_32, urlmon, and msvcrt dlls (and peb) all have saved binaries now
-	    - added ordinals for all dlls exports, added hook by ordinal function
-	    - GetProcAddress now support ordinal lookups.
-	    - updated memory monitor dll ranges for new and updated dlls
-	    - error handling tweaks for invalid memory disasm and step requests
+    dll - updated ws2_32, urlmon, and msvcrt dlls (and peb) all have saved binaries now
+        - added ordinals for all dlls exports, added hook by ordinal function
+        - GetProcAddress now support ordinal lookups.
+        - updated memory monitor dll ranges for new and updated dlls
+        - error handling tweaks for invalid memory disasm and step requests
 5.5.11
-	exe - FinFirstFileA, FindClose, DeleteUrlCacheEntryA, FindWindow
-	    - copying kernel32 from live memory so all opcodes are present for scanners
-	
+    exe - FinFirstFileA, FindClose, DeleteUrlCacheEntryA, FindWindow
+        - copying kernel32 from live memory so all opcodes are present for scanners
+    
 4.22.11
     dll - switched over to using a static PEB, see ./support/pebBuilder project
     
 4.14.11
-	exe - added /patch /b0 /ba /dir commands
-	    - fread in vc is different that in gcc.. had to switch fopen mode to use CreateFile
-	    - WriteFile, CreateFile etc now proxy to real api. (required because of above)
-	
+    exe - added /patch /b0 /ba /dir commands
+        - fread in vc is different that in gcc.. had to switch fopen mode to use CreateFile
+        - WriteFile, CreateFile etc now proxy to real api. (required because of above)
+    
 4.11.11
-	exe - /dump mode highlights possible start offsets (90,E8.E9)
-	    - kinda added: MultiByteToWideChar, URLDownloadToCacheFileW,CreateProcessInternalW, CreateFileW
-	    - ported code base to Visual Studio 2008. some features stripped like graphing, linux hooks, getpc
-	    - new hooks CreateFileMappingA, WideCharToMultiByte, GetLogicalDriveStringsA
-	    - still some fixups required from port.
+    exe - /dump mode highlights possible start offsets (90,E8.E9)
+        - kinda added: MultiByteToWideChar, URLDownloadToCacheFileW,CreateProcessInternalW, CreateFileW
+        - ported code base to Visual Studio 2008. some features stripped like graphing, linux hooks, getpc
+        - new hooks CreateFileMappingA, WideCharToMultiByte, GetLogicalDriveStringsA
+        - still some fixups required from port.
 
 3.31.11
     exe - added logging stub for ZwQueryVirtualMemory (only Section Name class implemented)
-	    - added bunch of signed to unsigned casts to make gcc 4.x happy
-		- dbgshell dump words now lets you walk mem negative with -1/-2 options
-		- added hooks GetEnvironmentVariableA,VirtualAllocEx,WriteProcessMemory,CreateRemoteThread,DialogBoxIndirectParamA
-		- allocs and threads launched in "external" process are (successfully) run in process
-	dll - added max_alloc check to _lwrite,malloc,fwrite,sendto,send
+        - added bunch of signed to unsigned casts to make gcc 4.x happy
+        - dbgshell dump words now lets you walk mem negative with -1/-2 options
+        - added hooks GetEnvironmentVariableA,VirtualAllocEx,WriteProcessMemory,CreateRemoteThread,DialogBoxIndirectParamA
+        - allocs and threads launched in "external" process are (successfully) run in process
+    dll - added max_alloc check to _lwrite,malloc,fwrite,sendto,send
 
 3.27.11
     exe - added hooks: RevertToSelf, RtlExitUserThread, FlushViewOfFile, UnmapViewOfFile
-	    - added some overview stats at end of run (ispacked,hookdetect,patchapi, peb list)
+        - added some overview stats at end of run (ispacked,hookdetect,patchapi, peb list)
 
 3.18.11 
     dll - added support for advapi32, shdocvw, 
         - GetProcAddress retval now defaults to 0 now.
         - WinExec cmdline read bumped up to 1256 chars
-	exe - added hooks: RTLDestroyEnvirnoment, LoadLibraryExA, GetModuleFileNameA 
-	    - fixed stack adjust bug with some api (+=)
-	    - added opcodes to GetProcAddress function for sig scanner technique.
-		- WriteFile buf addr -> real addr (was dll alloc addr) 
-		- disasm/reg display now shown pre-execution 
-		- -- and ++ option to adjust GetFileSize value (sometimes necessary)
-		- added /hooks option to dump list of supported api (currently 85 functions & 11 dlls)
+    exe - added hooks: RTLDestroyEnvirnoment, LoadLibraryExA, GetModuleFileNameA 
+        - fixed stack adjust bug with some api (+=)
+        - added opcodes to GetProcAddress function for sig scanner technique.
+        - WriteFile buf addr -> real addr (was dll alloc addr) 
+        - disasm/reg display now shown pre-execution 
+        - -- and ++ option to adjust GetFileSize value (sometimes necessary)
+        - added /hooks option to dump list of supported api (currently 85 functions & 11 dlls)
 
 3.10.11
-	dll - added support for shlwapi.dll, loaddll - made sure all image size is mapped
-	      emu_memory_read_string, never returns a null pointer now always a valid object (even if blank)
-		  might add dll setting -readanyaddr if sc expects certain addresses mapped..
-	exe - added hooks: GetTempFileNameA, CreateThread, SHRegGetBoolUSValueA, GetSystemTime
+    dll - added support for shlwapi.dll, loaddll - made sure all image size is mapped
+          emu_memory_read_string, never returns a null pointer now always a valid object (even if blank)
+          might add dll setting -readanyaddr if sc expects certain addresses mapped..
+    exe - added hooks: GetTempFileNameA, CreateThread, SHRegGetBoolUSValueA, GetSystemTime
 
 3.7.11 w/fopen option..
-	exe - added /fopen option for shellcode which scans w/ GetFileSize()
-		  added hooks for SetFilePointer, ReadFile, strstr, strtoul, FreeLibrary,
-		  GlobalFree, GetCurrentProcess, TerminateProcess
-		  /bp and /laa now accept api names to break at
-	dll - enabled support for TEST A8 and A9 (seems ok with ZF and PF but need more testing..)
+    exe - added /fopen option for shellcode which scans w/ GetFileSize()
+          added hooks for SetFilePointer, ReadFile, strstr, strtoul, FreeLibrary,
+          GlobalFree, GetCurrentProcess, TerminateProcess
+          /bp and /laa now accept api names to break at
+    dll - enabled support for TEST A8 and A9 (seems ok with ZF and PF but need more testing..)
 
 2.12.11
     exe - bugfixes/cleanups, new brute force findsc mode, CreateProcessA now supports shellcode
-	      which uses its function prolog to put args inline. hexdump mode to examine shellcode
-	      added /disasm, /dump, /getpc modes, added hook TerminateThread, support for multiple Allocs
-	      dump mode now dumps any allocs made as well..
+          which uses its function prolog to put args inline. hexdump mode to examine shellcode
+          added /disasm, /dump, /getpc modes, added hook TerminateThread, support for multiple Allocs
+          dump mode now dumps any allocs made as well..
 
 2.9.11
     dll - implemented mem range monitor with r/w logging
-	      void emu_memory_add_monitor_range(char id, uint32_t start_at, uint32_t end_at);
+          void emu_memory_add_monitor_range(char id, uint32_t start_at, uint32_t end_at);
           void emu_memory_set_range_access_monitor(uint32_t lpfnCallback);
-	exe - implemented mem range monitor (log patchs and hook detection to win api mode -mdll)
-	      dug into unhandledExceptionFIlter more, not perfect but enabled..working for some (some to complex)
+    exe - implemented mem range monitor (log patchs and hook detection to win api mode -mdll)
+          dug into unhandledExceptionFIlter more, not perfect but enabled..working for some (some to complex)
 
 2.5.11
     dll - mem addresses < 0x1000 no longer writable
-		  added support for ntdll..
-	exe - added hooks for ZwTerminateThread, ZwTerminateProcess
-		- experimented with GlobalAlloc shellcode that hooks UnhandledExceptionFilter (fail)
-		- misc cleanups/tweaks
+          added support for ntdll..
+    exe - added hooks for ZwTerminateThread, ZwTerminateProcess
+        - experimented with GlobalAlloc shellcode that hooks UnhandledExceptionFilter (fail)
+        - misc cleanups/tweaks
 
 2.2.11
-	dll - added support for wininet.dll
-	exe - added hooks InternetOpenA, InternetOpenUrlA, InternetReadFile, VirtualAlloc
-	
+    dll - added support for wininet.dll
+    exe - added hooks InternetOpenA, InternetOpenUrlA, InternetReadFile, VirtualAlloc
+    
 2.1.11
     dll - added memory monitor feature 2 new exports, 
          void emu_memory_set_access_monitor(uint32_t lpfnCallback);
-		 void emu_memory_add_monitor_point(uint32_t address);
-	exe - implemented logging of access to key memory offsets when in /mm mode
-	      (allows you to quickly see which peb elements it uses for profiling)
-	      added support for top-stack and seh based methods of getting k32 base
-	      SetUnhandledExceptionFilter hook now also sets fs:0 handler. 
+         void emu_memory_add_monitor_point(uint32_t address);
+    exe - implemented logging of access to key memory offsets when in /mm mode
+          (allows you to quickly see which peb elements it uses for profiling)
+          added support for top-stack and seh based methods of getting k32 base
+          SetUnhandledExceptionFilter hook now also sets fs:0 handler. 
 
 1.31.11
-	dll - tweaked PEB init routines, now works with method used in Shellcoders Handbook (didier msgbox example)
-	exe - added dbg cmd g (go) and .so (step over)
-	
+    dll - tweaked PEB init routines, now works with method used in Shellcoders Handbook (didier msgbox example)
+    exe - added dbg cmd g (go) and .so (step over)
+    
 1.28.11
-	re-exposed getpc mode with /findsc option, start at file offwset with /foff option
-	added hooks for GlobalAlloc, UrlDownloadToCacheFileA, system
-	added .savemem .lp .pl .reg .poke1 .poke4 to debug shell 
-	changed partial lookup_address fulllookupaddress, read_hex now can accept unsigned long vals
-	updated lookup to search all api not just subset (used in stack dump, deref regs, dump dwords, and .lp)
-	implemented nanny on _lcreate series hooks, tested interactive mode w *create
-	added support for hexdump mode in all appropirate hooks
-	misc cleanups
-	
+    re-exposed getpc mode with /findsc option, start at file offwset with /foff option
+    added hooks for GlobalAlloc, UrlDownloadToCacheFileA, system
+    added .savemem .lp .pl .reg .poke1 .poke4 to debug shell 
+    changed partial lookup_address fulllookupaddress, read_hex now can accept unsigned long vals
+    updated lookup to search all api not just subset (used in stack dump, deref regs, dump dwords, and .lp)
+    implemented nanny on _lcreate series hooks, tested interactive mode w *create
+    added support for hexdump mode in all appropirate hooks
+    misc cleanups
+    
 1.26.11 -dzzie
-	dll changes
-		- added support for shell32.dll
-		- added support for user32.dll
-		- emu_disasm_addr now uses offset
-	sctest
-		- added hooks for GetModuleHandleA, user32.MessageBoxA, GetFileSize,
-		                  shell32.ShellExecuteA, shell32.SHGetSpecialFolderPathA, 
-		                  CreateFileMappingA, CreateProcessInternalA, MapViewOfFile
-		- implemented a generic hook handler (multiple fx in one stub)
+    dll changes
+        - added support for shell32.dll
+        - added support for user32.dll
+        - emu_disasm_addr now uses offset
+    sctest
+        - added hooks for GetModuleHandleA, user32.MessageBoxA, GetFileSize,
+                          shell32.ShellExecuteA, shell32.SHGetSpecialFolderPathA, 
+                          CreateFileMappingA, CreateProcessInternalA, MapViewOfFile
+        - implemented a generic hook handler (multiple fx in one stub)
 
 1.22.11 -dzzie
    cloned from current libemu git
