@@ -30,6 +30,7 @@
 #pragma warning(disable: 4267)
 #pragma warning(disable: 4482)
 #pragma comment(lib, "Winhttp.lib")
+#pragma comment(lib, "Dbghelp.lib")
 
 #include <hash_map>
 #include <string>
@@ -49,6 +50,7 @@
 #include <wininet.h>
 #include <Shlobj.h>
 #include <TlHelp32.h>
+#include <dbghelp.h>
 //#include <Winhttp.h>
 
 #include "emu.h"
@@ -628,6 +630,12 @@ int32_t	__stdcall hook_GenericStub(struct emu_env_w32 *win, struct emu_env_w32_d
 	}
 
 	if(strcmp(func, "GlobalFree") ==0 ){
+		log_val = get_arg(0);  //hmem
+		ret_val = 0;
+		arg_count = 1;
+	}
+
+	if(strcmp(func, "LocalFree") ==0 ){ //gabor
 		log_val = get_arg(0);  //hmem
 		ret_val = 0;
 		arg_count = 1;
@@ -2874,6 +2882,7 @@ int32_t	__stdcall hook_WideCharToMultiByte(struct emu_env_w32 *win, struct emu_e
 	if(bufInSz < MAX_ALLOC ){
 		char* tmp = (char*)SafeMalloc(bufInSz);
 		emu_memory_read_block(mem,bufIn,tmp,bufInSz);
+		if (bufOutSz>bufInSz) {bufOutSz=bufInSz;}		//not a good idea to read over the allocated tmp buf - gabor
 		emu_memory_write_block(mem, bufOut,tmp,bufOutSz); //if > bufInSz thats their problem emu will allocate
 		rv = strlen(tmp);
 		free(tmp);
@@ -3252,8 +3261,7 @@ int32_t	__stdcall hook_IsBadReadPtr(struct emu_env_w32 *win, struct emu_env_w32_
 	return 0;
 }
 
-
-int32_t	__stdcall hook_GetCommandLineA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+int32_t	__stdcall hook_GetCommandLine(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
 {   
 	/*	LPTSTR WINAPI GetCommandLine(void);	*/
 
@@ -3264,7 +3272,7 @@ int32_t	__stdcall hook_GetCommandLineA(struct emu_env_w32 *win, struct emu_env_w
 	uint32_t size = strlen(buf);
 	emu_memory_write_block(mem, safe_stringbuf, (void*)buf, size);
 
-	printf("%x\tGetCommandLineA() = %x\n", eip_save, safe_stringbuf );
+	printf("%x\t%s() = %x\n", eip_save, ex->fnname, safe_stringbuf );
 	
 	set_ret(safe_stringbuf);
 	emu_cpu_eip_set(cpu, eip_save);
@@ -3687,6 +3695,7 @@ int32_t	__stdcall hook_RegOpenKeyEx(struct emu_env_w32 *win, struct emu_env_w32_
 	printf("%x\t%s(%s, %s)\n", eip_save, ex->fnname , hKey, subKey->data );
 	emu_memory_write_dword(mem, result, 0);
 	
+	free(hKey);
 	emu_string_free(subKey);
 	cpu->reg[eax] = -1;//ERROR_SUCCESS;	 
 	emu_cpu_eip_set(cpu, eip_save);
@@ -4704,7 +4713,7 @@ int32_t	__stdcall hook_ZwSetInformationProcess(struct emu_env_w32 *win, struct e
 
 	printf("%x\tZwSetInformationProcess(hProc: %x, class: %x, info: %x)   ", eip_save, hProc, infoClass, v);
 
-	if(infoClass=0x22){
+	if(infoClass == 0x22){ //gabor bugfix
 		printf(" class=ProcessExecuteFlags");
 		if(v==2) printf(" DEP Disabled");
 	}
@@ -6633,3 +6642,624 @@ int32_t	__stdcall hook_ConnectNamedPipe(struct emu_env_w32 *win, struct emu_env_
 	return 0;
 
 }
+
+
+/*
+----------------------------------------------------------------------------------------------------------
+                          additions generously contributed by Gabor Szappanos
+----------------------------------------------------------------------------------------------------------
+*/
+int32_t	__stdcall hook_ShellExecuteExA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+BOOL ShellExecuteExA(
+  SHELLEXECUTEINFOA *pExecInfo
+);
+typedef struct _SHELLEXECUTEINFOA {
+  DWORD     cbSize;
+  ULONG     fMask;
+  HWND      hwnd;
+  LPCSTR    lpVerb;
+  LPCSTR    lpFile;
+  LPCSTR    lpParameters;
+  LPCSTR    lpDirectory;
+  int       nShow;
+  HINSTANCE hInstApp;
+  void      *lpIDList;
+  LPCSTR    lpClass;
+  HKEY      hkeyClass;
+  DWORD     dwHotKey;
+  union {
+    HANDLE hIcon;
+    HANDLE hMonitor;
+  } DUMMYUNIONNAME;
+  HANDLE    hProcess;
+} SHELLEXECUTEINFOA, *LPSHELLEXECUTEINFOA;
+*/
+	uint32_t eip_save = popd();
+	uint32_t ppExecInfo  = popd();
+	
+	SHELLEXECUTEINFOA ExecInfo;
+	memset(&ExecInfo,0,sizeof(SHELLEXECUTEINFOA));
+	emu_memory_read_block(mem,ppExecInfo,&ExecInfo,sizeof(SHELLEXECUTEINFOA));
+//	would be nice to have this way
+//	printf("%x\tShellExecuteExA(%s: %s, %s)\n",eip_save, pExecInfo->lpVerb, pExecInfo->lpFile, pExecInfo->lpParameters);
+
+	struct emu_string *lpfile = emu_string_new();
+    emu_memory_read_string(mem,(uint32_t)ExecInfo.lpFile, lpfile, 255);
+	
+	if (ExecInfo.lpVerb!=0){
+		struct emu_string *lpverb = emu_string_new();
+		emu_memory_read_string(mem,(uint32_t)ExecInfo.lpVerb, lpverb, 255);
+		printf("%x\tShellExecuteExA(action:%s, %s)\n",eip_save, emu_string_char(lpverb),emu_string_char(lpfile));
+		emu_string_free(lpverb);
+	}
+	else {
+		printf("%x\tShellExecuteExA(action:open, %s)\n",eip_save, emu_string_char(lpfile));		
+	}	  
+	
+	
+	cpu->reg[eax] = 1;
+	emu_cpu_eip_set(cpu, eip_save);
+	emu_string_free(lpfile);
+	return 0;
+}
+
+int32_t	__stdcall hook_SHGetSpecialFolderLocation(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+HRESULT SHGetSpecialFolderLocation(
+  _In_  HWND             hwndOwner,
+  _In_  int              nFolder,
+  _Out_ PIDLIST_ABSOLUTE *ppidl
+);
+
+*/
+	uint32_t eip_save = popd();
+	uint32_t hwnd = popd();
+	uint32_t csidl = popd();
+	uint32_t ppidl = popd();
+	HRESULT result = 0;
+
+	char buf255[255];
+	memset(buf255,0,254);
+	GetSHFolderName(csidl, (char*)&buf255);
+
+	printf("%x\tSHGetSpecialFolderLocation(csidl=%x, %s)\n",eip_save,csidl, buf255 );
+	result = SHGetSpecialFolderLocation((HWND)hwnd,csidl,(PIDLIST_ABSOLUTE *)&ppidl);
+
+	set_ret((uint32_t)result);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+
+int32_t	__stdcall hook_SHGetPathFromIDListA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+BOOL SHGetPathFromIDList(
+  _In_  PCIDLIST_ABSOLUTE pidl,
+  _Out_ LPTSTR            pszPath
+);
+
+*/
+	uint32_t eip_save = popd();
+	uint32_t pidl = popd();
+	uint32_t buf = popd();
+	uint32_t result = 0;
+
+	//result = SHGetPathFromIDListA((PCIDLIST_ABSOLUTE)pidl,(LPTSTR)buf);
+
+	//printf("%x\tSHGetPathFromIDList(pidl=%x)= %s\n",eip_save,pidl,(char*)buf );
+	printf("%x\tSHGetPathFromIDList(pidl=%x)\n",eip_save,pidl);
+
+	set_ret(result);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_ImageRvaToVa(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	PVOID WINAPI ImageRvaToVa(
+		_In_     PIMAGE_NT_HEADERS     NtHeaders,
+		_In_     PVOID                 Base,
+		_In_     ULONG                 Rva,
+		_In_opt_ PIMAGE_SECTION_HEADER *LastRvaSection
+	);
+*/
+	uint32_t eip_save = popd();
+	uint32_t NtHeaders		= popd();
+	uint32_t Base = popd();
+	uint32_t Rva = popd();
+	uint32_t  LastRvaSection = popd();
+	PVOID view = 0;
+		
+	if(opts.interactive_hooks==1) 
+		view = ImageRvaToVa((PIMAGE_NT_HEADERS)NtHeaders,(PVOID)Base,Rva,(PIMAGE_SECTION_HEADER *)&LastRvaSection);
+
+	printf("%x\tImageRvaToVa(h=%x, base=%x, Rva=%x) = %x\n", eip_save, NtHeaders, Base, Rva, (uint32_t)view);
+
+	set_ret((uint32_t)view);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_FatalAppExitA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{   /* void FatalAppExitA(
+		UINT   uAction,
+		LPCSTR lpMessageText
+		);
+	*/
+	uint32_t eip_save = popd();
+	uint32_t action = popd();
+	struct emu_string *s_messagetext = popstring();
+
+	printf("%x\tFatalAppExitA(%s)\n", eip_save, emu_string_char(s_messagetext));
+
+	emu_string_free(s_messagetext);
+	set_ret(0);
+	emu_cpu_eip_set(cpu, eip_save);
+	opts.steps = 0;
+	return 0;
+}
+
+int32_t	__stdcall hook_ZwWriteFile(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	NTSTATUS ZwWriteFile(
+		_In_     HANDLE           FileHandle,
+		_In_opt_ HANDLE           Event,
+		_In_opt_ PIO_APC_ROUTINE  ApcRoutine,
+		_In_opt_ PVOID            ApcContext,
+		_Out_    PIO_STATUS_BLOCK IoStatusBlock,
+		_In_     PVOID            Buffer,
+		_In_     ULONG            Length,
+		_In_opt_ PLARGE_INTEGER   ByteOffset,
+		_In_opt_ PULONG           Key
+  );
+*/  
+	uint32_t eip_save = popd();
+	uint32_t FileHandle = popd();
+	uint32_t Event = popd();
+	uint32_t ApcRoutine = popd();
+	uint32_t ApcContext = popd();
+	uint32_t IoStatusBlock = popd();
+	uint32_t p_buffer = popd();
+	uint32_t bytestowrite = popd();
+	uint32_t ByteOffset = popd();
+	uint32_t Key = popd();
+	uint32_t p_byteswritten=0;
+
+
+	uint32_t max_size = 0x900000;
+	if( bytestowrite > max_size ){  //sample 2c2167d371c6e0ccbcee778a4d10b3bd - dzzie 
+		if(!opts.norw) printf("\tZwWriteFile modifying BytesToWrite from %x to %x\n", bytestowrite , max_size);
+		bytestowrite = max_size;
+	}
+
+	unsigned char *buffer = (unsigned char*)SafeMalloc(bytestowrite);
+	emu_memory_read_block(mem, p_buffer,(void*) buffer, bytestowrite);
+	emu_memory_write_dword(mem, p_byteswritten, bytestowrite);
+	
+
+	if(opts.show_hexdumps && bytestowrite > 0){
+		int display_size = bytestowrite;
+		if(display_size > 300){
+			printf("Showing first 300 bytes...\n");
+			display_size = 300;
+		}
+		hexdump(buffer, display_size);
+	}
+
+	uint32_t returnvalue = 1;
+	uint32_t written=0;
+	if(opts.interactive_hooks == 1 ){
+		//should work if NTDDK files could be imported		
+		//returnvalue = ZwWriteFile( (HANDLE)FileHandle, Event,ApcRoutine,ApcContext, &IoStatusBlock,buffer, bytestowrite, ByteOffset,Key);		
+		returnvalue = WriteFile( (HANDLE)FileHandle, buffer, bytestowrite, &written,0);
+	}
+
+	bool isSpam = strcmp(win->lastApiCalled, "ZwWriteFile") == 0 ? true : false;
+
+	if(!isSpam && !opts.norw)
+		printf("%x\tZwWriteFile(h=%x, buf=%x, len=%x, offs=%x) = %x\n",eip_save, (int)FileHandle, p_buffer, bytestowrite,ByteOffset, returnvalue );
+	
+	if(isSpam && win->lastApiHitCount == 2) printf("\tHiding repetitive ZwWriteFile calls\n");
+
+	set_ret(returnvalue);
+	free(buffer);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_GetForegroundWindow(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*
+		HWND WINAPI GetForegroundWindow(void);
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t ret=0;
+	
+	printf("%x\tGetForegroundWindow()\n", eip_save);
+	if(opts.interactive_hooks == 1 ){
+		ret = (uint32_t)GetForegroundWindow();		
+	}
+
+	set_ret(ret);
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_SHSetValue(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*
+		LSTATUS SHSetValue(
+			_In_     HKEY    hkey,
+			_In_opt_ LPCTSTR pszSubKey,
+			_In_opt_ LPCTSTR pszValue,
+			_In_     DWORD   dwType,
+			_In_opt_ LPCVOID pvData,
+			_In_     DWORD   cbData
+		);
+	*/
+	uint32_t eip_save = popd();
+	char* hKey = getHive( popd() );
+	struct emu_string* subKey = isWapi(ex->fnname) ? popwstring() : popstring();
+	struct emu_string* Value = isWapi(ex->fnname) ? popwstring() : popstring();
+	uint32_t type = popd();
+	struct emu_string* Data = isWapi(ex->fnname) ? popwstring() : popstring();
+	uint32_t cbData = popd();
+	uint32_t result = popd();
+	
+	printf("%x\t%s(%s, %s, %s,%s,  type:%x)\n", eip_save, ex->fnname , hKey, subKey->data, Value->data, Data->data, type );
+	emu_memory_write_dword(mem, result, 0);
+	
+	free(hKey);
+	emu_string_free(subKey);
+	emu_string_free(Value);
+	emu_string_free(Data);
+
+	cpu->reg[eax] = -1;//ERROR_SUCCESS;	 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_RegSetValueEx(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*
+	LONG WINAPI RegSetValueEx(
+		_In_             HKEY    hKey,
+		_In_opt_         LPCTSTR lpValueName,
+		_Reserved_       DWORD   Reserved,
+		_In_             DWORD   dwType,
+		_In_       const BYTE    *lpData,
+		_In_             DWORD   cbData
+		);
+	*/
+	uint32_t eip_save = popd();
+	char* hKey = getHive( popd() );
+	struct emu_string* ValueName = isWapi(ex->fnname) ? popwstring() : popstring();
+	uint32_t reserved = popd();
+	uint32_t type = popd();
+	struct emu_string* lpData = isWapi(ex->fnname) ? popwstring() : popstring();
+	uint32_t cbData = popd();
+	
+	printf("%x\t%s(%s, %s : %s)\n", eip_save, ex->fnname , hKey, ValueName->data, lpData->data );
+	
+	free(hKey);
+	emu_string_free(ValueName);
+	emu_string_free(lpData);
+
+	cpu->reg[eax] = -1;//ERROR_SUCCESS;	 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+
+int32_t	__stdcall hook_RegOpenKey(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*
+		LONG WINAPI RegOpenKey(
+			_In_     HKEY    hKey,
+			_In_opt_ LPCTSTR lpSubKey,
+			_Out_    PHKEY   phkResult
+);
+
+	*/
+	uint32_t eip_save = popd();
+	char* hKey = getHive( popd() );
+	struct emu_string* subKey = isWapi(ex->fnname) ? popwstring() : popstring();
+	uint32_t result = popd();
+	
+	printf("%x\t%s(%s, %s)\n", eip_save, ex->fnname , hKey, subKey->data );
+	emu_memory_write_dword(mem, result, 0);
+	
+	free(hKey);
+	emu_string_free(subKey);
+
+	cpu->reg[eax] = -1;//ERROR_SUCCESS;	 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+int32_t	__stdcall hook_RegEnumKey(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*
+LONG WINAPI RegEnumKey(
+  _In_  HKEY   hKey,
+  _In_  DWORD  dwIndex,
+  _Out_ LPTSTR lpName,
+  _In_  DWORD  cchName
+);
+
+	*/
+	uint32_t eip_save = popd();
+	char* hKey = getHive( popd() );
+	uint32_t index = popd();
+	struct emu_string* lpName = isWapi(ex->fnname) ? popwstring() : popstring();
+	uint32_t cchname = popd();
+	
+	printf("%x\t%s(%s,%d)\n", eip_save, ex->fnname , hKey,index);
+		
+	free(hKey);
+	emu_string_free(lpName);
+
+	cpu->reg[eax] = -1;//ERROR_SUCCESS;	 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_PathAppendA(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*	BOOL PathAppend(
+	  _Inout_ LPTSTR  pszPath,
+	  _In_    LPCTSTR pszMore
+	)
+	*/
+	uint32_t eip_save = popd();
+	struct emu_string* pszPath = popstring();
+	struct emu_string* pszMore = popstring();
+
+	int i=0;
+
+	printf("%x\tPathAppend(%s, %s)\n", eip_save, pszPath->data, pszMore->data);
+
+	int sz = pszPath->size + pszMore->size + 10;
+	char* buf = SafeMalloc(sz);
+	
+	if(pszPath->size > 0) strncpy(buf, pszPath->data, pszPath->size);
+	lstrcatA(buf, "\\");
+
+	if(pszMore->size > 0) lstrcatA(buf, pszMore->data);
+	emu_memory_write_block(mem,pszPath->emu_offset,buf,strlen(buf)+1);
+
+	free(buf);
+	emu_string_free(pszPath);
+	emu_string_free(pszMore);
+
+	set_ret(TRUE); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall hook_ZwQueryObject(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/* 
+__kernel_entry NTSYSCALLAPI NTSTATUS NtQueryObject(
+  HANDLE                   Handle,
+  OBJECT_INFORMATION_CLASS ObjectInformationClass,
+  PVOID                    ObjectInformation,
+  ULONG                    ObjectInformationLength,
+  PULONG                   ReturnLength
+);
+typedef enum _OBJECT_INFORMATION_CLASS {
+  ObjectBasicInformation,
+  ObjectTypeInformation
+} OBJECT_INFORMATION
+*/
+	int ret = 0; //STATUS_SUCCESS ;
+	uint32_t eip_save  = popd();
+	uint32_t hProc     = popd();
+	uint32_t infoClass = popd();
+	uint32_t pObjectInfo = popd();
+	uint32_t ObjectInfoLength = popd();
+	uint32_t returnLength = popd();
+	
+	struct emu_string *buf = emu_string_new();
+	//struct emu_string *bufdata = emu_string_new();
+
+	emu_memory_read_string(mem, pObjectInfo, buf, ObjectInfoLength);
+
+	printf("%x\tZwQueryObject(hProc: %x, class: %x)   ", eip_save, hProc, infoClass);
+
+	if(infoClass == 1 && buf->size != 0){ //ObjectTypeInformation	
+		printf(" ObjectTypeInformation=%s", emu_string_char(buf));
+	}	
+	printf("\n");
+	if (buf->size ==0) ret = 0xC0000008;	//STATUS INVALID HANDLE
+
+	emu_string_free(buf);
+	//emu_string_free(bufdata);
+
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_ZwProtectVirtualMemory(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/* 
+	NtProtectVirtualMemory(
+	  IN HANDLE               ProcessHandle,
+	  IN OUT PVOID            *BaseAddress,
+	  IN OUT PULONG           NumberOfBytesToProtect,
+	  IN ULONG                NewAccessProtection,
+	  OUT PULONG              OldAccessProtection );
+*/
+	int ret = 0; //STATUS_SUCCESS ;
+	uint32_t eip_save  = popd();
+	uint32_t hProc     = popd();
+	uint32_t pBaseAddress = popd();
+	uint32_t NumberofBytes = popd();
+	uint32_t NewProt = popd();
+	uint32_t OldProt = popd();
+	
+	uint32_t BaseAddress=0;
+	emu_memory_read_dword(mem, pBaseAddress, &BaseAddress);
+	printf("%x\tZwProtecVirtualMemory(hProc: %x, address: %x, protection: %x)\n", eip_save, hProc, BaseAddress, NewProt);
+
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_MoveFileEx(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/* 	
+		BOOL WINAPI MoveFileEx(
+			  _In_     LPCTSTR lpExistingFileName,
+			_In_opt_ LPCTSTR lpNewFileName,
+			_In_     DWORD   dwFlags
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	struct emu_string* path = isWapi(ex->fnname) ?  popwstring() : popstring();
+	struct emu_string* path_new = isWapi(ex->fnname) ?  popwstring() : popstring();
+	uint32_t flags   = popd();
+	
+	printf("%x\t%s(%s, %s, flags:%x)\n",eip_save, ex->fnname, path->data, path_new->data, flags);
+
+	set_ret(1); 
+    emu_cpu_eip_set(cpu, eip_save);
+	emu_string_free(path);
+	emu_string_free(path_new);
+	return 0;
+}
+
+int32_t	__stdcall hook_RegCloseKey(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	LONG WINAPI RegCloseKey(
+	  _In_  HKEY hKey,
+	);
+*/
+	uint32_t eip_save = popd();
+	uint32_t h = popd();
+	char* hive = getHive(h);
+
+	uint32_t ret = ERROR_SUCCESS;  
+
+	printf("%x\t%s(%s)\n", eip_save, ex->fnname, hive);
+
+	free(hive);
+
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_WinHttpQueryDataAvailable(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+/*
+	BOOLAPI WinHttpQueryDataAvailable(
+	  IN HINTERNET hRequest,
+	  LPDWORD      lpdwNumberOfBytesAvailable
+	);
+*/
+	uint32_t eip_save = popd();
+	uint32_t h = popd();
+	uint32_t lpdwbytes = popd();
+
+	uint32_t ret = TRUE;  
+
+	printf("%x\t%s()\n", eip_save, ex->fnname);
+
+	emu_memory_write_dword(mem, lpdwbytes, 0);
+	cpu->reg[eax] = ret;
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_TlsAlloc(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  DWORD TlsAlloc(); */
+
+	uint32_t eip_save = popd();
+
+	printf("%x\t%s()\n", eip_save, ex->fnname);
+	set_ret(1); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall hook_TlsSetValue(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+	BOOL TlsSetValue(
+	  DWORD  dwTlsIndex,
+	  LPVOID lpTlsValue
+	);
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t dwTlsIndex = popd();
+	uint32_t lpTlsValue = popd();
+
+	printf("%x\t%s(index: %x, pvalue: %x)\n", eip_save, ex->fnname, dwTlsIndex, lpTlsValue);
+	if (lpTlsValue == 0) 
+		set_ret(0); 
+	else
+		set_ret(1); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall hook_HeapDestroy(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		BOOL HeapDestroy(
+		  HANDLE hHeap
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t hHeap = popd();
+	
+	printf("%x\t%s(handle: %x)\n", eip_save, ex->fnname, hHeap);
+
+	set_ret(1); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall hook_QueryPerformanceCounter(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		BOOL QueryPerformanceCounter(
+		  LARGE_INTEGER *lpPerformanceCount
+		);
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t lpcounter = popd();
+	uint32_t counter = rand();
+
+	printf("%x\t%s()\n", eip_save, ex->fnname);
+	emu_memory_write_dword(mem, lpcounter, counter);
+	set_ret(1); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+/*
+----------------------------------------------------------------------------------------------------------
+                                           end Gabor additions 
+----------------------------------------------------------------------------------------------------------
+*/

@@ -13,3 +13,7 @@ give debug shell a real command line parser to avoid all the prompts?
 ----------------------------
 see .bugfixme.txt
 see add_fpu_instructions.zip
+
+Note: if you run into unimplemented instructions or lack of rep support check out the
+      experimental scdbg build which uses the Unicorn engine for its emulator:
+         https://github.com/dzzie/scdbg_unicorn

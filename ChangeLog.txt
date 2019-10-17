@@ -1,6 +1,14 @@
 
 ---------------[  Changelog for scdbg/libemu  ]---------------
 
+10.16.19 - 32 new hooks contributed by Gabor Szappanos thanks! 
+			    LocalFree, MoveFileExA/W, RegSetValueExA/W, SHSetValueA/W, RegOpenKeyA/W, 
+				RegEnumKeyA/W, GetCommandLineA/W, RegCloseKey,  FatalAppExitA,  LocalFree,  
+				ShellExecuteExA,  SHGetSpecialFolderLocation, SHGetPathFromIDListA, PathAppendA 
+				ZwWriteFile, ImageRvaToVa, GetForegroundWindow, _stricmp, strcmp, ZwQueryObject, 
+				ZwProtectVirtualMemory, WinHttpQueryDataAvailable, QueryPerformanceCounter, TlsAlloc, 
+				TlsSetValue, HeapDestroy 
+
 5.9.15  -  added winhttp.dll, dbg shell .allocs command, bugfix LoadLibrary/GetModuleHandle _strnicmp
 		   7 hooks:  WinHttpCrackUrl, WinHttpOpen, WinHttpGetIEProxyConfigForCurrentUser, 
 				     WinHttpConnect, WinHttpOpenRequest, WinHttpSendRequest, WinHttpReceiveResponse 

@@ -351,7 +351,11 @@ bool isInteractive(char* api){
 					"sendto","socket","WSASocketA","CreateFileMappingA","FindFirstFileA",
 					"fread","ExpandEnvironmentStringsA","lstrlenA","lstrcmpiA","lstrcatA","strcat",
 					"RtlDecompressBuffer","CryptReleaseContext","CryptDestroyHash","CryptGetHashParam","CryptHashData",
-					"CryptCreateHash","CryptAcquireContextA","CryptAcquireContextW", NULL };
+					"CryptCreateHash","CryptAcquireContextA","CryptAcquireContextW",
+					"ImageRvaToVa","ZwWriteFile","ExpandEnvironmentStringsW","GetForegroundWindow", /* gs */
+					NULL 
+	};
+
 
 	int i=0;
 	while( iApi[i] != NULL ){
@@ -366,7 +370,10 @@ bool isInteractive(char* api){
 bool isProxied(char* api){
 	char* iApi[] = {"GetCommandLineA","GetSystemTime", "GetTempPathA","GetTempFileNameA","strstr",
 					"SHGetFolderPathA","SHGetSpecialFolderPathA","ExpandEnvironmentStringsA","lstrlenA",
-					"lstrcmpiA","lstrcatA","strcat","strcmp","stricmp","GetSystemInfo",NULL };
+					"lstrcmpiA","lstrcatA","strcat","strcmp","stricmp","GetSystemInfo",
+					"SHGetSpecialFolderLocation","SHGetPathFromIDListA","ExpandEnvironmentStringsW", /* gs */
+					NULL 
+	};
 
 	int i=0;
 	while( iApi[i] != NULL ){
@@ -2053,6 +2060,12 @@ void set_hooks(struct emu_env *env){
 	HOOKBOTH(GetFileAttributes);
     HOOKBOTH(CreateNamedPipe);
     HOOKBOTH(ExpandEnvironmentStrings);
+	HOOKBOTH(MoveFileEx);     //begin gabor 10.16.19
+    HOOKBOTH(RegSetValueEx);
+	HOOKBOTH(SHSetValue);
+	HOOKBOTH(RegOpenKey);
+	HOOKBOTH(RegEnumKey);
+    HOOKBOTH(GetCommandLine); //end gabor
 
 	//these are up here because this declares the extern so we can break macro pattern in manual hooking below..
 	ADDHOOK(ExitProcess);
@@ -2072,6 +2085,8 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(memchr);
 	ADDHOOK(memcmp);
     ADDHOOK(strcpy);
+    ADDHOOK(RegCloseKey);  //-gs
+    ADDHOOK(FatalAppExitA);//-gs
 
 	//these dont follow the macro pattern..mostly redirects/multitasks
 	emu_env_w32_export_new_hook(env, "LoadLibraryExA",  hook_LoadLibrary, NULL);
@@ -2129,6 +2144,7 @@ void set_hooks(struct emu_env *env){
 	GENERICHOOK(CloseServiceHandle);
 	GENERICHOOK(DeleteService);
 	GENERICHOOK(AdjustTokenPrivileges)
+    GENERICHOOK(LocalFree); //-gs
 
 	ADDHOOK(MessageBoxA);
 	ADDHOOK(ShellExecuteA);
@@ -2190,7 +2206,6 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(GetClassNameA);
 	ADDHOOK(fread);
 	ADDHOOK(IsBadReadPtr);
-	ADDHOOK(GetCommandLineA);
 	ADDHOOK(SHGetFolderPathA);
 	ADDHOOK(CryptCreateHash);
 	ADDHOOK(CryptHashData);
@@ -2285,6 +2300,26 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(WSAAccept);
 	ADDHOOK(GetSystemInfo);
 	ADDHOOK(ConnectNamedPipe);
+
+	ADDHOOK(ShellExecuteExA);
+	ADDHOOK(SHGetSpecialFolderLocation);
+	ADDHOOK(SHGetPathFromIDListA);
+	ADDHOOK(PathAppendA);
+
+	ADDHOOK(ZwWriteFile);          //begin gabor 10.16.19
+	ADDHOOK(ImageRvaToVa);
+	ADDHOOK(GetForegroundWindow);
+	ADDHOOK(_stricmp);
+	ADDHOOK(strcmp);
+	ADDHOOK(ZwQueryObject);
+	ADDHOOK(ZwProtectVirtualMemory);
+	ADDHOOK(WinHttpQueryDataAvailable);
+	ADDHOOK(QueryPerformanceCounter)
+	ADDHOOK(TlsAlloc)
+	ADDHOOK(TlsSetValue)
+	ADDHOOK(HeapDestroy)          //end gabor 10.16.19
+
+
 	
 }
 

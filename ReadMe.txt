@@ -2,6 +2,12 @@
 This project is a port of the GCC libemu project to compile with 
 Visual Studio 2008
 
+------------------------------------------------------------------------
+Note: if you run into unimplemented instructions or lack of rep support 
+      check out the experimental scdbg build which uses the Unicorn engine 
+               https://github.com/dzzie/scdbg_unicorn
+------------------------------------------------------------------------
+
 Additions include:
 
 140+ new api hooks, 8 new dlls, interactive debug shell, 
