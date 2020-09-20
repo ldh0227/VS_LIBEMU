@@ -1,10 +1,10 @@
 #include <windows.h>
 
-typedef struct{
-    int dwFlag;
-    int cbSize;
-    int lpData;
-} cpyData;
+typedef struct {
+	ULONG_PTR dwFlag; // dwData;
+	DWORD     cbSize; // cbData;
+	PVOID     lpData;
+ } cpyData;
 
 struct loadlib_override{
 	char* dllName;

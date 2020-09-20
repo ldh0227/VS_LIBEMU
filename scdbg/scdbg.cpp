@@ -392,7 +392,7 @@ void IDASync(uint32_t eip){
 	if(opts.IDAImgBase == 0) adjustedOffset -= opts.baseAddress; //they disam as raw binary file no rebase or exe
 
 	SendMessage(opts.IDASrvrHwnd, IDA_QUICKCALL_MESSAGE, 1, adjustedOffset);  //jmp:lngAdr 
-	SendMessage(opts.IDASrvrHwnd, IDA_QUICKCALL_MESSAGE, 43, 0); //SetFocusSelectLine
+	//SendMessage(opts.IDASrvrHwnd, IDA_QUICKCALL_MESSAGE, 43, 0); //SetFocusSelectLine
 
 	for(int i=0; i<5; i++){ //can require an unknown delay
 		Sleep(200);
@@ -408,7 +408,7 @@ int IDASendTextMessage(HWND hwnd, char *buf)
 	  if(buf[blen] != 0) buf[blen]=0; ;
 	  cpyData cpStructData;  
 	  cpStructData.cbSize = blen;
-	  cpStructData.lpData = (int)buf;
+	  cpStructData.lpData = buf;
 	  cpStructData.dwFlag = 3;
 	  return SendMessage((HWND)hwnd, WM_COPYDATA, (WPARAM)hwnd,(LPARAM)&cpStructData);  
 }
@@ -437,7 +437,7 @@ HWND IDASrvrHWND(void){
 	 HKEY h;
 	 
 	 RegOpenKeyExA(HKEY_CURRENT_USER, baseKey, 0, KEY_READ, &h);
-	 RegQueryValueExA(h, "IDA_SERVER", 0,0, (unsigned char*)tmp, &l);
+	 RegQueryValueExA(h, "IDA_SERVER2", 0,0, (unsigned char*)tmp, &l);
 	 RegCloseKey(h);
 	
 	 ret = (HWND)atoi(tmp);
@@ -445,14 +445,37 @@ HWND IDASrvrHWND(void){
 	 return ret;
 }
 
+int GetProcessMainWindow(DWORD dwProcessID, char* buf, int sz)
+{
+	HWND hwnd = NULL;
+	do 
+	{
+	 hwnd = FindWindowEx (NULL, hwnd, NULL, NULL);
+	 DWORD dwPID = 0;
+	 GetWindowThreadProcessId(hwnd, &dwPID);
+	 if (dwPID == dwProcessID)
+		GetWindowTextA(hwnd, &buf[0], sz);
+		if(buf[0]=='I' && buf[1]=='D' && buf[2]=='A') return 1;
+	}
+	while (hwnd != NULL);
+
+	return 0;
+
+}
+
 void IDAConnect(void){
 	char buf[100] ={"Unknown"};
+	DWORD ida_pid = 0;
 	opts.IDASrvrHwnd = IDASrvrHWND();
 	if(opts.IDASrvrHwnd != 0){
 		opts.IDAImgBase = SendMessage( opts.IDASrvrHwnd, IDA_QUICKCALL_MESSAGE, 8, 0);
-		HWND mainWindow = (HWND)SendMessage( opts.IDASrvrHwnd, IDA_QUICKCALL_MESSAGE, 41, 0);
-		GetWindowTextA(mainWindow, &buf[0], 99);
-		printf("Connected to: %s\n", buf);
+		GetWindowThreadProcessId(opts.IDASrvrHwnd, &ida_pid);
+		if( GetProcessMainWindow(ida_pid, (char*)&buf, sizeof(buf)) ){
+			printf("Connected to: %s\n", buf);
+		}
+		else{
+			printf("Connected to: 0x%x\n", opts.IDASrvrHwnd);
+		}
 		IDASync(cpu->eip);
 		 
 	}else{
@@ -1643,7 +1666,7 @@ void show_debugshell_help(void){
 			"\t.lookup - get symbol for address\n"  
 			"\t.symbol - get address for symbol (special: peb,dllmap,fs0)\n" 
 			"\t.savemem - saves a memdump of specified range to file\n"
-			"\t.idasync - connect IDASrvr plugin and sync view at step or break.\n"
+			"\t.idasync - connect IDASrvr2 (IDA7+) plugin and sync view at step or break.\n"
 			"\t.allocs - list memory allocations made\n"
 			"\tq - quit\n\n"
 		  );
@@ -3065,7 +3088,7 @@ void show_help(void)
 		{"eswap", NULL ,     "endian swaps -f and -wstr input buffers"},
 		{"xor", "0xVal" ,     "xor -f and -wstr input buffers with 1 - 4 byte keys"},
 		{"conv", "path" , "outputs converted shellcode to file (%u,\\x,bswap,eswap..)"},
-		{"ida", NULL , "connects to last opened IDA instance on startup"},
+		{"ida", NULL , "connects to last opened IDASrvr2 (IDA7+) instance on startup"},
 		{"[reg]", "value" , "sets init register value ex: -eax 0x20 -ebx 20 -ecx base -reg base"},
 	};
 
@@ -4176,7 +4199,7 @@ int main(int argc, char *argv[])
 	min_window_size();
 	SetConsoleTitle("scdbg - http://sandsprite.com"); //so you only have to set quick edit mode once for this caption..
 	SetConsoleCtrlHandler(ctrl_c_handler, TRUE); //http://msdn.microsoft.com/en-us/library/ms686016
-	IDA_QUICKCALL_MESSAGE = RegisterWindowMessageA("IDA_QUICKCALL");
+	IDA_QUICKCALL_MESSAGE = RegisterWindowMessageA("IDA_QUICKCALL2");
 
 	hCon = GetStdHandle( STD_INPUT_HANDLE );
 	hConOut = GetStdHandle( STD_OUTPUT_HANDLE );
