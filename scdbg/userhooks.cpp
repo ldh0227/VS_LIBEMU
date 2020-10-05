@@ -3637,7 +3637,7 @@ int32_t	__stdcall hook_HttpSendRequestA(struct emu_env_w32 *win, struct emu_env_
 
 	printf("%x\tHttpSendRequestA(", eip_save);
 	if(headers->size != 0) printf("%s, ", headers->data);
-	if(optLen != 0) printf("opt: %s", opt->data);
+	if(optLen != 0) printf("optLen: %x = %s", optLen, opt->data);
 	printf(")\n");
 
 	emu_string_free(headers);
@@ -4425,9 +4425,15 @@ int32_t	__stdcall hook_OpenProcessToken(struct emu_env_w32 *win, struct emu_env_
 	uint32_t a = popd();
 	uint32_t ph = popd();
 	uint32_t ret=0xcafebabe;
+	
+	if(opts.interactive_hooks){
+		HANDLE hToken;
+		ret = OpenProcessToken((HANDLE)h,a, &hToken);
+		emu_memory_write_dword(mem, ph, (uint32_t)hToken);
+	}
 
 	printf("%x\tOpenProcessToken(h=%x, access=%x, pTokenHandle=%x) = %x\n", eip_save, h, a, ph, ret);
-	
+
 	cpu->reg[eax] = ret;
 	emu_cpu_eip_set(cpu, eip_save);
 	return 0;
@@ -6643,6 +6649,231 @@ int32_t	__stdcall hook_ConnectNamedPipe(struct emu_env_w32 *win, struct emu_env_
 
 }
 
+char* tokenClassToStr(int tokenInfoClass)
+{
+	char* n[] = {"TokenUser","TokenGroups","TokenPrivileges","TokenOwner","TokenPrimaryGroup","TokenDefaultDacl","TokenSource","TokenType",
+		        "TokenImpersonationLevel","TokenStatistics","TokenRestrictedSids","TokenSessionId","TokenGroupsAndPrivileges","TokenSessionReference",
+				"TokenSandBoxInert","TokenAuditPolicy","TokenOrigin","TokenElevationType","TokenLinkedToken","TokenElevation","TokenHasRestrictions",
+				"TokenAccessInformation","TokenVirtualizationAllowed","TokenVirtualizationEnabled","TokenIntegrityLevel","TokenUIAccess",
+				"TokenMandatoryPolicy","TokenLogonSid","TokenIsAppContainer","TokenCapabilities","TokenAppContainerSid","TokenAppContainerNumber",
+				"TokenUserClaimAttributes","TokenDeviceClaimAttributes","TokenRestrictedUserClaimAttributes","TokenRestrictedDeviceClaimAttributes",
+				"TokenDeviceGroups","TokenRestrictedDeviceGroups","TokenSecurityAttributes","TokenIsRestricted","TokenProcessTrustLevel",
+				"TokenPrivateNameSpace","TokenSingletonAttributes","TokenBnoIsolation","TokenChildProcessFlags","TokenIsLessPrivilegedAppContainer",
+				"TokenIsSandboxed","TokenOriginatingProcessTrustLevel","MaxTokenInfoClass"
+	};
+	int c = sizeof(n)/sizeof(n[0]);
+	char tmp[100];
+
+	if(tokenInfoClass < 0 || tokenInfoClass > c){
+		sprintf(&tmp[0],"unkown: 0x%x", tokenInfoClass);
+		return strdup(tmp);
+	}
+
+	return strdup(n[tokenInfoClass]);
+
+}
+int32_t	__stdcall hook_GetTokenInformation(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		BOOL GetTokenInformation(
+		  HANDLE                  TokenHandle,
+		  TOKEN_INFORMATION_CLASS TokenInformationClass,
+		  LPVOID                  TokenInformation,
+		  DWORD                   TokenInformationLength,
+		  PDWORD                  ReturnLength
+		);If the function succeeds, the return value is nonzero.
+
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t a = popd();
+	uint32_t b = popd();
+	uint32_t scBuf = popd();
+	uint32_t len = popd();
+	uint32_t pRetLen = popd();
+
+	int ret = 1;
+	int dwSize = 0;
+	char* tokenClassName = tokenClassToStr(b);
+
+	printf("%x\t%s(h=%x,class=%s,buf=%x,len=%x,*retLen=%x)", eip_save, ex->fnname , a, tokenClassName,scBuf,len,pRetLen);
+    
+	if(opts.interactive_hooks){
+		//query needed size
+		ret = GetTokenInformation((HANDLE)a,(TOKEN_INFORMATION_CLASS)b,NULL,dwSize,(PDWORD)&dwSize);
+		emu_memory_write_dword(mem, pRetLen, dwSize);
+		if(len >= dwSize){ 
+			unsigned char* buf = (unsigned char*)SafeMalloc(dwSize);
+			//this buffer probably contains relative offsets..we should keep a copy for latter other api calls?
+			ret = GetTokenInformation((HANDLE)a,(TOKEN_INFORMATION_CLASS)b,&buf[0],dwSize,(PDWORD)&dwSize);
+			if(ret) 
+			{
+				emu_memory_write_dword(mem, pRetLen, dwSize);
+				emu_memory_write_block(mem, scBuf, buf, dwSize);
+				if(opts.show_hexdumps){
+					printf("GetTokenInformation buffer:\n");
+					hexdump(buf, dwSize);
+				}
+			}
+			free(buf);
+		}
+	} 
+	else{
+		emu_memory_write_dword(mem, pRetLen, 0x1000);
+	}
+
+	if(!opts.show_hexdumps) printf(" = %x\n", ret);
+	free(tokenClassName);
+
+	set_ret(ret); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall hook_GetSidSubAuthorityCount(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		PUCHAR GetSidSubAuthorityCount(
+		  PSID pSid
+		);If the function succeeds, the return value is a pointer to the subauthority count for the specified SID structure.
+
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t a = popd();
+	
+	char tmp[1000];
+	emu_memory_write_block(mem, 0xAABBCCDD, &tmp, sizeof(tmp));
+	int ret = 0xAABBCCDD; //some readable address..sc will try to access it directly next...
+	int realRet= 0;
+
+	if(opts.interactive_hooks){
+		realRet = (int)GetSidSubAuthorityCount((PSID)a);
+		emu_memory_write_block(mem, ret, (void*)realRet, 0x20);
+		if(opts.show_hexdumps) hexdump((unsigned char*)realRet,0x20);
+	}
+
+	printf("%x\t%s(%x) = %x\n", eip_save, ex->fnname, a, realRet);
+
+	set_ret(ret); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall hook_GetSidSubAuthority(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		PDWORD GetSidSubAuthority(
+		  PSID  pSid,
+		  DWORD nSubAuthority
+		) If the function succeeds, the return value is a pointer to the specified SID subauthority. 
+
+	*/
+
+	uint32_t eip_save = popd();
+	uint32_t a = popd();
+	uint32_t b = popd();
+	
+	char tmp[1000];
+	emu_memory_write_block(mem, 0xAABBCCDD, &tmp, sizeof(tmp));
+	int ret = 0xAABBCCDD; //some readable address..sc will try to access it directly next...
+	int realRet= 0;
+
+	/*if(opts.interactive_hooks){
+		realRet = (int)GetSidSubAuthority((PSID)a,b);
+		emu_memory_write_block(mem, ret, (void*)realRet, 0x20);
+		if(opts.show_hexdumps) hexdump((unsigned char*)realRet,0x20);
+	}*/
+
+	printf("%x\t%s(%x,%x)\n", eip_save, ex->fnname, a, b);
+
+	set_ret(ret); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
+
+int32_t	__stdcall hook_RtlGetVersion(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{
+	/*  
+		NTSYSAPI NTSTATUS RtlGetVersion(
+		  PRTL_OSVERSIONINFOW lpVersionInformation
+		); RtlGetVersion returns STATUS_SUCCESS.
+                                     sz = 148                            sz=168
+		[out] Pointer to either a RTL_OSVERSIONINFOW structure or a RTL_OSVERSIONINFOEXW structure that contains 
+		the version information about the currently running operating system. A caller specifies which input 
+		structure is used by setting the dwOSVersionInfoSize member of the structure to the size in bytes 
+		of the structure that is used.
+
+		Ex structure adds following to the end of the struct
+		  USHORT wServicePackMajor;
+		  USHORT wServicePackMinor;
+		  USHORT wSuiteMask;
+		  UCHAR  wProductType;
+		  UCHAR  wReserved;
+
+		  ULONG  dwOSVersionInfoSize; is first element
+	*/
+	uint32_t eip_save = popd();
+	uint32_t a = popd();
+	uint32_t szRequested = 0; 
+	uint32_t realSize = 0;
+	
+	//win10 OSVERSIONINFOEXW
+	unsigned char def[] =  "\x1c\x01\x00\x00\x0a\x00\x00\x00\x00\x00\x00\x00\xBA\x47\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00"
+						   "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+						   "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+						   "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+						   "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+						   "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+						   "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+						   "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+						   "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+						   "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+						   "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+						   "\x00\x00\x00\x00\x00\x00\x00\x01\x01\x00";
+
+	bool handled = false;
+	emu_memory_read_dword(mem, a, &szRequested); //size is first field of structure
+	
+	if(opts.interactive_hooks){
+
+		typedef void (WINAPI * RtlGetVersion_FUNC)(OSVERSIONINFOEXW *);
+		RtlGetVersion_FUNC pRtlGetVersion;
+		OSVERSIONINFOEXW o;
+
+		pRtlGetVersion = (RtlGetVersion_FUNC)GetProcAddress(GetModuleHandle("ntdll.dll"), "RtlGetVersion");
+		if (pRtlGetVersion != 0) {
+			realSize = sizeof(o);
+			ZeroMemory(&o, realSize);
+			o.dwOSVersionInfoSize = sizeof(o);
+			pRtlGetVersion(&o);
+			if(szRequested > 0 && szRequested < realSize) realSize = szRequested; //downgrade to basic if thats what was requested. 
+			emu_memory_write_block(mem, a, &o, realSize);
+			/*if(opts.show_hexdumps){
+				printf("RtlGetVersion buffer:\n");
+				hexdump((unsigned char*)&o, realSize);
+			}*/
+			handled = true;
+		}
+
+	}
+	 
+	if(!handled){
+		realSize = sizeof(def);
+		if(szRequested < sizeof(def)) realSize = szRequested; //downgrade to basic if thats what was requested. 
+		if(realSize > 0) emu_memory_write_block(mem, a, def, realSize);
+	}
+
+	printf("%x\t%s(%x) (size=%d)\n", eip_save, ex->fnname, a, szRequested);
+
+	set_ret(STATUS_SUCCESS); 
+	emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+
+}
 
 /*
 ----------------------------------------------------------------------------------------------------------

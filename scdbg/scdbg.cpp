@@ -351,7 +351,8 @@ bool isInteractive(char* api){
 					"sendto","socket","WSASocketA","CreateFileMappingA","FindFirstFileA",
 					"fread","ExpandEnvironmentStringsA","lstrlenA","lstrcmpiA","lstrcatA","strcat",
 					"RtlDecompressBuffer","CryptReleaseContext","CryptDestroyHash","CryptGetHashParam","CryptHashData",
-					"CryptCreateHash","CryptAcquireContextA","CryptAcquireContextW",
+					"CryptCreateHash","CryptAcquireContextA","CryptAcquireContextW","RtlGetVersion",
+					"GetSidSubAuthorityCount","GetTokenInformation",
 					"ImageRvaToVa","ZwWriteFile","ExpandEnvironmentStringsW","GetForegroundWindow", /* gs */
 					NULL 
 	};
@@ -2337,11 +2338,15 @@ void set_hooks(struct emu_env *env){
 	ADDHOOK(ZwQueryObject);
 	ADDHOOK(ZwProtectVirtualMemory);
 	ADDHOOK(WinHttpQueryDataAvailable);
-	ADDHOOK(QueryPerformanceCounter)
-	ADDHOOK(TlsAlloc)
-	ADDHOOK(TlsSetValue)
-	ADDHOOK(HeapDestroy)          //end gabor 10.16.19
+	ADDHOOK(QueryPerformanceCounter);
+	ADDHOOK(TlsAlloc);
+	ADDHOOK(TlsSetValue);
+	ADDHOOK(HeapDestroy);         //end gabor 10.16.19
 
+	ADDHOOK(GetTokenInformation);
+    ADDHOOK(GetSidSubAuthorityCount);
+	ADDHOOK(GetSidSubAuthority);
+	ADDHOOK(RtlGetVersion);
 
 	
 }

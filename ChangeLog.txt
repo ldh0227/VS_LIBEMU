@@ -1,6 +1,8 @@
 
 ---------------[  Changelog for scdbg/libemu  ]---------------
 
+10.4.20  - 4 new hooks: RtlGetVersion,GetSidSubAuthorityCount,GetTokenInformation,GetSidSubAuthority
+
 10.16.19 - 32 new hooks contributed by Gabor Szappanos thanks! 
             LocalFree, MoveFileExA/W, RegSetValueExA/W, SHSetValueA/W, RegOpenKeyA/W, 
             RegEnumKeyA/W, GetCommandLineA/W, RegCloseKey,  FatalAppExitA,  LocalFree,  
