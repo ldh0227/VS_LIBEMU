@@ -2347,7 +2347,7 @@ void set_hooks(struct emu_env *env){
     ADDHOOK(GetSidSubAuthorityCount);
 	ADDHOOK(GetSidSubAuthority);
 	ADDHOOK(RtlGetVersion);
-
+	ADDHOOK(RtlAllocateHeap);
 	
 }
 

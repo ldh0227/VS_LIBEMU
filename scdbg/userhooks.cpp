@@ -2346,7 +2346,7 @@ int32_t	__stdcall hook_malloc(struct emu_env_w32 *win, struct emu_env_w32_dll_ex
 {/* cdecl void *malloc( size_t size );  not stdcall! */
 
 	uint32_t eip_save = popd();
-	uint32_t size = get_arg(0);
+	uint32_t size = get_arg(0); //not stdcall
 
 	if( size < 1024 ){
 		printf("\tAllocation %x < 1024 adjusting...\n", size);
@@ -2362,6 +2362,44 @@ int32_t	__stdcall hook_malloc(struct emu_env_w32 *win, struct emu_env_w32_dll_ex
 	set_next_alloc(size); // so dump knows about it...
 		
 	printf("%x\tmalloc(%x) = %x \n", eip_save, size, baseMemAddress);	
+
+	void *buf = SafeMalloc(size);
+	emu_memory_write_block(mem,baseMemAddress,buf, size);
+	free(buf);
+	 
+	set_ret(baseMemAddress);
+    emu_cpu_eip_set(cpu, eip_save);
+	return 0;
+}
+
+int32_t	__stdcall hook_RtlAllocateHeap(struct emu_env_w32 *win, struct emu_env_w32_dll_export *ex)
+{/* 
+		NTSYSAPI PVOID NTAPI RtlAllocateHeap(
+		  IN PVOID                HeapHandle,
+		  IN ULONG                Flags,
+		  IN ULONG                Size 
+		);
+  */
+
+	uint32_t eip_save = popd();
+	uint32_t hHeap = popd();
+	uint32_t flags = popd();
+	uint32_t size = popd();
+
+	if( size < 1024 ){
+		printf("\tAllocation %x < 1024 adjusting...\n", size);
+		size = 1024;
+	}
+
+	if(size > MAX_ALLOC){
+		printf("\tAllocation > MAX_ALLOC adjusting...\n");
+		size = MAX_ALLOC; //dzzie
+	}
+
+	uint32_t baseMemAddress = next_alloc;
+	set_next_alloc(size); // so dump knows about it...
+		
+	printf("%x\tRtlAllocateHeap(sz: %x) = %x \n", eip_save, size, baseMemAddress);	
 
 	void *buf = SafeMalloc(size);
 	emu_memory_write_block(mem,baseMemAddress,buf, size);
